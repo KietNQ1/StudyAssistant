@@ -852,6 +852,9 @@ namespace myapp.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Content")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("CourseId")
                         .HasColumnType("INTEGER");
 
@@ -859,6 +862,9 @@ namespace myapp.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("EstimatedTimeMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsCompleted")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("OrderIndex")

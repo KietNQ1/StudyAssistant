@@ -25,8 +25,10 @@ namespace myapp.Models
         public required string Title { get; set; }
 
         public string? Description { get; set; }
+        public string? Content { get; set; } // Rich text content for the topic
         public int OrderIndex { get; set; }
         public int EstimatedTimeMinutes { get; set; }
+        public bool IsCompleted { get; set; } = false; // Track if user completed this topic
 
         public virtual ICollection<Topic> ChildTopics { get; set; } = new List<Topic>();
     }

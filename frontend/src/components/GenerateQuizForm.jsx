@@ -4,6 +4,7 @@ import { authFetch } from '../utils/authFetch';
 function GenerateQuizForm({ course, onQuizGenerated }) {
   const [documentId, setDocumentId] = useState('');
   const [title, setTitle] = useState('');
+  const [numberOfQuestions, setNumberOfQuestions] = useState(5);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,7 +28,7 @@ function GenerateQuizForm({ course, onQuizGenerated }) {
           documentId: parseInt(documentId),
           title: title,
           createdByUserId: currentUserId,
-          numberOfQuestions: 5,
+          numberOfQuestions: numberOfQuestions,
         }),
       });
       onQuizGenerated(newQuiz);
@@ -72,6 +73,25 @@ function GenerateQuizForm({ course, onQuizGenerated }) {
             {course.documents.map(doc => (
               <option key={doc.id} value={doc.id}>{doc.title}</option>
             ))}
+          </select>
+        </div>
+        <div className="mb-4">
+          <label htmlFor="number-questions" className="block text-gray-700 font-bold mb-2">
+            Number of Questions
+          </label>
+          <select
+            id="number-questions"
+            value={numberOfQuestions}
+            onChange={(e) => setNumberOfQuestions(parseInt(e.target.value))}
+            className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            required
+          >
+            <option value="5">5 câu hỏi</option>
+            <option value="10">10 câu hỏi</option>
+            <option value="15">15 câu hỏi</option>
+            <option value="20">20 câu hỏi</option>
+            <option value="25">25 câu hỏi</option>
+            <option value="30">30 câu hỏi</option>
           </select>
         </div>
         <button
