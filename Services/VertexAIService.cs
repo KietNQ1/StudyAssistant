@@ -86,5 +86,51 @@ namespace myapp.Services
             }
             return System.Array.Empty<float>();
         }
+
+        public async Task<string> GenerateCourseStructureAsync(string documentsContent, string userGoal = "")
+        {
+            var prompt = $@"You are an expert educational course designer. Based on the following documents content, create a comprehensive course structure.
+
+Documents Content:
+{documentsContent}
+
+User's Learning Goal (if provided): {userGoal}
+
+Please analyze the content and create a well-structured course outline with the following JSON format:
+{{
+  ""courseTitle"": ""Suggested course title based on content"",
+  ""courseDescription"": ""Brief description of what students will learn"",
+  ""topics"": [
+    {{
+      ""title"": ""Topic 1 Title"",
+      ""description"": ""What this topic covers"",
+      ""content"": ""Detailed content summary for this topic"",
+      ""estimatedTimeMinutes"": 30,
+      ""subtopics"": [
+        {{
+          ""title"": ""Subtopic 1.1"",
+          ""description"": ""What this subtopic covers"",
+          ""content"": ""Detailed content for subtopic"",
+          ""estimatedTimeMinutes"": 15
+        }}
+      ]
+    }}
+  ]
+}}
+
+Guidelines:
+1. Create 3-7 main topics that logically organize the content
+2. Each main topic can have 0-5 subtopics
+3. Estimate realistic time needed for each topic/subtopic
+4. Make sure topics flow logically from basics to advanced
+5. Extract and summarize relevant content for each topic from the documents
+6. Keep descriptions and content concise (1-3 sentences each)
+7. Return ONLY valid JSON, no additional text or explanation
+8. IMPORTANT: Complete the entire JSON structure properly - do not truncate
+
+Generate the course structure now:";
+
+            return await PredictTextAsync(prompt, temperature: 0.3, maxTokens: 8000);
+        }
     }
 }

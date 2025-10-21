@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AddCourseForm from '../components/AddCourseForm';
+import AIGenerateCourseForm from '../components/AIGenerateCourseForm';
 import { authFetch } from '../utils/authFetch'; // Import the new fetch utility
 
 function CoursesPage() {
@@ -31,6 +32,8 @@ function CoursesPage() {
   return (
     <div className="p-8">
       <h1 className="text-4xl font-bold mb-8">Courses</h1>
+      
+      <AIGenerateCourseForm onCourseGenerated={handleCourseAdded} />
       
       <AddCourseForm onCourseAdded={handleCourseAdded} />
 

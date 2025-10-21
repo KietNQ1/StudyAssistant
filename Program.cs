@@ -109,6 +109,7 @@ builder.Services.AddSignalR()
 
 // Configure Application Services
 builder.Services.AddTransient<IBackgroundJobService, BackgroundJobService>();
+builder.Services.AddSingleton<WebScraperService>();
 
 // Configure Google Cloud Services (as Singletons)
 builder.Services.AddSingleton(provider =>

@@ -9,6 +9,8 @@ import App from './App.jsx'
 import HomePage from './pages/HomePage.jsx';
 import CoursesPage from './pages/CoursesPage.jsx';
 import CourseDetailPage from './pages/CourseDetailPage.jsx';
+import CourseLayout from './layouts/CourseLayout.jsx';
+import TopicContentPage from './pages/TopicContentPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import QuizPage from './pages/QuizPage.jsx';
@@ -32,6 +34,20 @@ const router = createBrowserRouter([
       {
         path: "courses/:id",
         element: <CourseDetailPage />,
+      },
+      {
+        path: "course/:courseId",
+        element: <CourseLayout />,
+        children: [
+          {
+            path: "",
+            element: <TopicContentPage />,
+          },
+          {
+            path: "topic/:topicId",
+            element: <TopicContentPage />,
+          },
+        ],
       },
       {
         path: "chat/:sessionId",
