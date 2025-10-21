@@ -96,7 +96,8 @@ https://github.com/KietNQ1/StudyAssistant/blob/main/TEAM_SETUP.md
 2. Clone repo: git clone https://github.com/KietNQ1/StudyAssistant.git
 3. Install Google Cloud CLI: https://cloud.google.com/sdk/docs/install
 4. Login: gcloud auth application-default login
-5. Setup local: đọc TEAM_SETUP.md section 3
+5. Setup JWT Key: dotnet user-secrets set "Jwt:Key" "StudyAssistantDevKey2024SecretAtLeast32Chars!@#"
+6. Setup local: đọc TEAM_SETUP.md section 3
 
 Có vấn đề gì contact mình nhé!
 

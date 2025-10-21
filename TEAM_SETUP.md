@@ -163,8 +163,11 @@ npm install
 # Ở root folder (StudyAssistant/)
 dotnet user-secrets init
 
-# Set JWT Key (mỗi người dùng key riêng cho local dev)
-dotnet user-secrets set "Jwt:Key" "YourLocalSecretKeyAtLeast32CharsLong12345678"
+# Set JWT Key (TẤT CẢ TEAM DÙNG CÙNG KEY này cho development)
+dotnet user-secrets set "Jwt:Key" "StudyAssistantDevKey2024SecretAtLeast32Chars!@#"
+
+# ⚠️ QUAN TRỌNG: Tất cả team members PHẢI dùng CHÍNH XÁC key này!
+# Để token có thể hoạt động đồng bộ trên tất cả máy dev
 
 # KHÔNG cần set Google Cloud credentials nếu dùng gcloud auth
 # Google Cloud SDK tự động dùng credentials từ gcloud auth

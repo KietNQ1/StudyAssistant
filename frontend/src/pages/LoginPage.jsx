@@ -106,7 +106,7 @@ function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" a className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
             </label>
             <input
