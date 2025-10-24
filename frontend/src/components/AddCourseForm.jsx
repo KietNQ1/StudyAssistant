@@ -1,79 +1,135 @@
 import React, { useState } from 'react';
-import { authFetch } from '../utils/authFetch'; // Import authFetch
+import { Sparkles, X } from 'lucide-react';
+import { authFetch } from '../utils/authFetch';
 
-function AddCourseForm({ onCourseAdded }) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+function AddCourseForm({ onCourseAdded, onClose }) {
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [error, setError] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        setError(null);
 
-    // Hardcoding UserId for now. This should come from auth context later.
-    const userId = 1; 
+        // Hardcoding UserId for now. This should come from auth context later.
+        const userId = 1;
 
-    try {
-      const newCourse = await authFetch('/api/Courses', {
-        method: 'POST',
-        body: JSON.stringify({
-          userId,
-          title,
-          description,
-        }),
-      });
+        try {
+            const newCourse = await authFetch('/api/Courses', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId,
+                    title,
+                    description,
+                }),
+            });
 
-      onCourseAdded(newCourse);
-      setTitle('');
-      setDescription('');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+            onCourseAdded(newCourse);
+            setTitle('');
+            setDescription('');
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-      <h2 className="text-2xl font-bold mb-4">Create a New Course</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label htmlFor="title" className="block text-gray-700 font-bold mb-2">
-            Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            required
-          />
+            // Close modal if onClose is provided
+            if (onClose) {
+                onClose();
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-2xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <Sparkles className="w-6 h-6 text-gray-900" />
+                    <h2 className="text-2xl font-semibold text-gray-900">
+                        Create a New Course
+                    </h2>
+                </div>
+                {onClose && (
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                )}
+            </div>
+
+            <form onSubmit={handleSubmit}>
+                {/* Title Input */}
+                <div className="mb-6">
+                    <label
+                        htmlFor="title"
+                        className="block text-base font-semibold text-gray-900 mb-2"
+                    >
+                        Course Title
+                    </label>
+                    <input
+                        type="text"
+                        id="title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="E.g., Introduction to Web Development"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder-gray-400"
+                        required
+                    />
+                </div>
+
+                {/* Description Textarea */}
+                <div className="mb-8">
+                    <label
+                        htmlFor="description"
+                        className="block text-base font-semibold text-gray-900 mb-2"
+                    >
+                        Course Description
+                    </label>
+                    <textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Describe what students will learn in this course..."
+                        rows={5}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder-gray-400 resize-none"
+                    />
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                    <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                        <Sparkles className="w-5 h-5" />
+                        {submitting ? 'Creating...' : 'Create Course'}
+                    </button>
+
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            </form>
         </div>
-        <div className="mb-4">
-          <label htmlFor="description" className="block text-gray-700 font-bold mb-2">
-            Description
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400"
-        >
-          {submitting ? 'Creating...' : 'Create Course'}
-        </button>
-        {error && <p className="text-red-500 mt-4">{error}</p>}
-      </form>
-    </div>
-  );
+    );
 }
 
 export default AddCourseForm;
