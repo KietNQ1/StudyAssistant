@@ -13,6 +13,7 @@ import CourseLayout from './layouts/CourseLayout.jsx';
 import TopicContentPage from './pages/TopicContentPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
 import QuizPage from './pages/QuizPage.jsx';
 import './index.css'
 
@@ -62,6 +63,10 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/register",
+    element: <RegisterPage />,
   }
 ]);
 
