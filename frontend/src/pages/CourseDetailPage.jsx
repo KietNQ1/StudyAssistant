@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import UploadDocumentForm from '../components/UploadDocumentForm';
-import GenerateQuizForm from '../components/GenerateQuizForm'; // Import the new component
-import TopicsList from '../components/TopicsList'; // Import the Topics component
+import GenerateQuizForm from '../components/GenerateQuizForm';
+import TopicsList from '../components/TopicsList';
 import { authFetch } from '../utils/authFetch';
 
 function CourseDetailPage() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [creatingChat, setCreatingChat] = useState(null);
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const fetchCourseDetails = async () => {
     if (!id) return;
@@ -40,6 +42,27 @@ function CourseDetailPage() {
         ...prevCourse,
         quizzes: [...prevCourse.quizzes, newQuiz],
       }));
+  };
+
+  // Create chat session with document (RAG-enabled)
+  const handleChatWithDocument = async (document) => {
+    setCreatingChat(document.id);
+    try {
+      const newSession = await authFetch('/api/ChatSessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `Chat về: ${document.title}`,
+          courseId: course.id,
+          documentId: document.id
+        })
+      });
+      
+      navigate(`/chat-sessions/${newSession.id}`);
+    } catch (err) {
+      alert(`Failed to create chat: ${err.message}`);
+    } finally {
+      setCreatingChat(null);
+    }
   };
 
   if (loading) return <p>Loading course details...</p>;
@@ -76,8 +99,51 @@ function CourseDetailPage() {
               <ul className="space-y-4">
                 {course.documents.map(doc => (
                   <li key={doc.id} className="bg-white p-4 rounded-lg shadow-md">
-                    <p className="font-semibold">{doc.title}</p>
-                    <p className="text-sm text-gray-500">{doc.fileType}</p>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-lg">{doc.title}</p>
+                        <p className="text-sm text-gray-500">{doc.fileType}</p>
+                        {doc.processingStatus && (
+                          <span className={`text-xs px-2 py-1 rounded mt-2 inline-block ${
+                            doc.processingStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                            doc.processingStatus === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {doc.processingStatus === 'completed' ? '✅ Ready for RAG' :
+                             doc.processingStatus === 'failed' ? '❌ Processing Failed' :
+                             '⏳ Processing...'}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <button
+                        onClick={() => handleChatWithDocument(doc)}
+                        disabled={creatingChat === doc.id || doc.processingStatus !== 'completed'}
+                        className={`ml-4 px-4 py-2 rounded-lg flex items-center gap-2 transition ${
+                          doc.processingStatus === 'completed' && creatingChat !== doc.id
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                        title={doc.processingStatus === 'completed' ? 'Chat with this document using AI' : 'Document must be processed first'}
+                      >
+                        {creatingChat === doc.id ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            Chat với tài liệu
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
