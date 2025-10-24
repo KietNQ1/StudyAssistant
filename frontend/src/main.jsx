@@ -13,6 +13,7 @@ import CourseLayout from './layouts/CourseLayout.jsx';
 import TopicContentPage from './pages/TopicContentPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
 import QuizPage from './pages/QuizPage.jsx';
 import './index.css'
 
