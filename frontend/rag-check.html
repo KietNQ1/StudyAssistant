@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Status Check</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        .status-working {
+            background: #4CAF50;
+            color: white;
+        }
+        .status-not-working {
+            background: #f44336;
+            color: white;
+        }
+        .stat {
+            display: inline-block;
+            margin: 10px 20px 10px 0;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .stat-value {
+            font-size: 24px;
+            color: #4CAF50;
+            margin-left: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .checkmark { color: #4CAF50; font-size: 24px; }
+        .cross { color: #f44336; font-size: 24px; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 RAG Status Checker</h1>
+    
+    <div class="section">
+        <button onclick="checkRAG()">🔄 Refresh Status</button>
+        <button onclick="location.reload()">↻ Reload Page</button>
+    </div>
+
+    <div id="loading" class="loading">Loading RAG status...</div>
+    <div id="error" class="error" style="display:none;"></div>
+    <div id="results" style="display:none;">
+        <!-- Documents Section -->
+        <div class="section">
+            <h2>📄 Documents</h2>
+            <div class="stat">
+                <span class="stat-label">Total:</span>
+                <span class="stat-value" id="docs-total">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">✅ Completed:</span>
+                <span class="stat-value" id="docs-completed">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">❌ Failed:</span>
+                <span class="stat-value" id="docs-failed" style="color:#f44336">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">⏳ Processing:</span>
+                <span class="stat-value" id="docs-processing" style="color:#FF9800">0</span>
+            </div>
+            <div id="docs-table"></div>
+        </div>
+
+        <!-- Chunks Section -->
+        <div class="section">
+            <h2>🧩 Document Chunks</h2>
+            <div class="stat">
+                <span class="stat-label">Total Chunks:</span>
+                <span class="stat-value" id="chunks-total">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">✅ With Embeddings:</span>
+                <span class="stat-value" id="chunks-with-embedding">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">❌ Without Embeddings:</span>
+                <span class="stat-value" id="chunks-without-embedding" style="color:#f44336">0</span>
+            </div>
+            <div id="chunks-by-doc"></div>
+            <div id="chunk-sample"></div>
+        </div>
+
+        <!-- Chat Sessions Section -->
+        <div class="section">
+            <h2>💬 Chat Sessions</h2>
+            <div class="stat">
+                <span class="stat-label">Total:</span>
+                <span class="stat-value" id="sessions-total">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🔗 With Document:</span>
+                <span class="stat-value" id="sessions-with-doc">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Without Document:</span>
+                <span class="stat-value" id="sessions-without-doc" style="color:#999">0</span>
+            </div>
+            <div id="linked-sessions"></div>
+        </div>
+
+        <!-- RAG Status Summary -->
+        <div class="section">
+            <h2>🎯 RAG Status Summary</h2>
+            <div id="rag-status"></div>
+        </div>
+
+        <!-- Raw JSON -->
+        <div class="section">
+            <h2>📋 Raw Response</h2>
+            <pre id="raw-json"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function checkRAG() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch('http://localhost:5232/api/RAGCheck/status');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = `
+                    <strong>❌ Error:</strong> ${error.message}<br><br>
+                    <strong>Troubleshooting:</strong><br>
+                    1. Make sure backend is running: <code>cd C:\\Users\\Huan\\Desktop\\StudyAssistant && dotnet run</code><br>
+                    2. Check if port is 5232 (see Properties/launchSettings.json)<br>
+                    3. Verify CORS is enabled in Program.cs<br>
+                    4. Open browser console (F12) for more details
+                `;
+            }
+        }
+
+        function displayResults(data) {
+            // Documents
+            document.getElementById('docs-total').textContent = data.documents.total;
+            document.getElementById('docs-completed').textContent = data.documents.completed;
+            document.getElementById('docs-failed').textContent = data.documents.failed;
+            document.getElementById('docs-processing').textContent = data.documents.processing;
+
+            if (data.documents.recent && data.documents.recent.length > 0) {
+                let table = '<h3>Recent Documents</h3><table><tr><th>ID</th><th>Title</th><th>Status</th><th>Pages</th><th>Uploaded</th></tr>';
+                data.documents.recent.forEach(doc => {
+                    table += `<tr>
+                        <td>${doc.id}</td>
+                        <td>${doc.title}</td>
+                        <td>${doc.processingStatus}</td>
+                        <td>${doc.pageCount || 'N/A'}</td>
+                        <td>${new Date(doc.uploadedAt).toLocaleString()}</td>
+                    </tr>`;
+                });
+                table += '</table>';
+                document.getElementById('docs-table').innerHTML = table;
+            }
+
+            // Chunks
+            document.getElementById('chunks-total').textContent = data.chunks.total;
+            document.getElementById('chunks-with-embedding').textContent = data.chunks.withEmbeddings;
+            document.getElementById('chunks-without-embedding').textContent = data.chunks.withoutEmbeddings;
+
+            if (data.chunks.byDocument && data.chunks.byDocument.length > 0) {
+                let chunksInfo = '<h3>Chunks by Document</h3><table><tr><th>Document ID</th><th>Total Chunks</th><th>With Embeddings</th></tr>';
+                data.chunks.byDocument.forEach(doc => {
+                    chunksInfo += `<tr>
+                        <td>${doc.documentId}</td>
+                        <td>${doc.chunkCount}</td>
+                        <td>${doc.withEmbedding}</td>
+                    </tr>`;
+                });
+                chunksInfo += '</table>';
+                document.getElementById('chunks-by-doc').innerHTML = chunksInfo;
+            }
+
+            if (data.chunks.sample) {
+                const sample = data.chunks.sample;
+                document.getElementById('chunk-sample').innerHTML = `
+                    <h3>Sample Chunk</h3>
+                    <p><strong>Chunk ID:</strong> ${sample.id}</p>
+                    <p><strong>Document ID:</strong> ${sample.documentId}</p>
+                    <p><strong>Content Length:</strong> ${sample.contentLength} chars</p>
+                    <p><strong>Embedding Dimension:</strong> ${sample.embeddingDimension}</p>
+                    <p><strong>Content Preview:</strong></p>
+                    <pre>${sample.contentPreview}</pre>
+                `;
+            }
+
+            // Chat Sessions
+            document.getElementById('sessions-total').textContent = data.chatSessions.total;
+            document.getElementById('sessions-with-doc').textContent = data.chatSessions.withDocument;
+            document.getElementById('sessions-without-doc').textContent = data.chatSessions.withoutDocument;
+
+            if (data.chatSessions.linkedSessions && data.chatSessions.linkedSessions.length > 0) {
+                let sessionsTable = '<h3>Linked Sessions</h3><table><tr><th>Session ID</th><th>Session Title</th><th>Document ID</th><th>Document Title</th></tr>';
+                data.chatSessions.linkedSessions.forEach(session => {
+                    sessionsTable += `<tr>
+                        <td>${session.sessionId}</td>
+                        <td>${session.sessionTitle}</td>
+                        <td>${session.documentId}</td>
+                        <td>${session.documentTitle || 'N/A'}</td>
+                    </tr>`;
+                });
+                sessionsTable += '</table>';
+                document.getElementById('linked-sessions').innerHTML = sessionsTable;
+            }
+
+            // RAG Status
+            const status = data.ragStatus;
+            const isWorking = status.isWorking;
+            
+            document.getElementById('rag-status').innerHTML = `
+                <div style="text-align:center; margin:20px 0;">
+                    <h2 style="font-size:48px;">${isWorking ? '✅' : '❌'}</h2>
+                    <div class="status-badge ${isWorking ? 'status-working' : 'status-not-working'}">
+                        RAG IS ${isWorking ? 'WORKING' : 'NOT WORKING YET'}
+                    </div>
+                </div>
+                <table>
+                    <tr>
+                        <th>Component</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td>Documents Uploaded</td>
+                        <td>${status.hasDocuments ? '<span class="checkmark">✅</span> YES' : '<span class="cross">❌</span> NO'}</td>
+                    </tr>
+                    <tr>
+                        <td>Documents Processed</td>
+                        <td>${status.hasProcessedDocs ? '<span class="checkmark">✅</span> YES' : '<span class="cross">❌</span> NO'}</td>
+                    </tr>
+                    <tr>
+                        <td>Chunks Created</td>
+                        <td>${status.hasChunks ? '<span class="checkmark">✅</span> YES' : '<span class="cross">❌</span> NO'}</td>
+                    </tr>
+                    <tr>
+                        <td>Embeddings Generated</td>
+                        <td>${status.hasEmbeddings ? '<span class="checkmark">✅</span> YES' : '<span class="cross">❌</span> NO'}</td>
+                    </tr>
+                    <tr>
+                        <td>Chat Sessions Linked</td>
+                        <td>${status.hasLinkedSessions ? '<span class="checkmark">✅</span> YES' : '<span class="cross">❌</span> NO'}</td>
+                    </tr>
+                </table>
+            `;
+
+            // Raw JSON
+            document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Auto-check on load
+        window.onload = checkRAG;
+    </script>
+</body>
+</html>

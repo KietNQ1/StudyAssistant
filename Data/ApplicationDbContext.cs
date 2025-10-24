@@ -20,6 +20,7 @@ namespace myapp.Data
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<MessageCitation> MessageCitations { get; set; }
+        public DbSet<ChatSessionDocument> ChatSessionDocuments { get; set; }
 
         // Quiz & Assessment System
         public DbSet<Question> Questions { get; set; }

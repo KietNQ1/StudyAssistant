@@ -188,6 +188,33 @@ namespace myapp.Data.Migrations
                     b.ToTable("ChatSessions");
                 });
 
+            modelBuilder.Entity("myapp.Models.ChatSessionDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ChatSessionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("DocumentId");
+
+                    b.ToTable("ChatSessionDocuments");
+                });
+
             modelBuilder.Entity("myapp.Models.Course", b =>
                 {
                     b.Property<int>("Id")
@@ -1067,6 +1094,25 @@ namespace myapp.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("myapp.Models.ChatSessionDocument", b =>
+                {
+                    b.HasOne("myapp.Models.ChatSession", "ChatSession")
+                        .WithMany("ChatSessionDocuments")
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("myapp.Models.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatSession");
+
+                    b.Navigation("Document");
+                });
+
             modelBuilder.Entity("myapp.Models.Course", b =>
                 {
                     b.HasOne("myapp.Models.User", "User")
@@ -1445,6 +1491,8 @@ namespace myapp.Data.Migrations
             modelBuilder.Entity("myapp.Models.ChatSession", b =>
                 {
                     b.Navigation("ChatMessages");
+
+                    b.Navigation("ChatSessionDocuments");
                 });
 
             modelBuilder.Entity("myapp.Models.Course", b =>
