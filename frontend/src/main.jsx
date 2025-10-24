@@ -12,6 +12,7 @@ import CourseDetailPage from './pages/CourseDetailPage.jsx';
 import CourseLayout from './layouts/CourseLayout.jsx';
 import TopicContentPage from './pages/TopicContentPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
+import ChatSessionsPage from './pages/ChatSessionsPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import QuizPage from './pages/QuizPage.jsx';
@@ -51,8 +52,12 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "chat/:sessionId",
-        element: <ChatPage />,
+        path: "chat-sessions",
+        element: <ChatSessionsPage />,
+      },
+      {
+        path: "chat-sessions/:sessionId",
+        element: <ChatSessionsPage />,
       },
       {
         path: "quiz/:id",
@@ -67,6 +72,10 @@ const router = createBrowserRouter([
   {
     path: "/register",
     element: <RegisterPage />,
+  },
+  {
+    path: "/chat/:sessionId",
+    element: <ChatPage />,
   }
 ]);
 

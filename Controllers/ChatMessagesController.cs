@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.SignalR;
 using myapp.Hubs;
 using Pgvector.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace myapp.Controllers
 {
@@ -28,6 +29,17 @@ namespace myapp.Controllers
             _context = context;
             _vertexAIService = vertexAIService;
             _hubContext = hubContext;
+        }
+
+        // Helper method to get current user ID from JWT token
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                throw new UnauthorizedAccessException("User ID not found in token");
+            }
+            return userId;
         }
 
         // GET: api/ChatMessages
@@ -58,13 +70,21 @@ namespace myapp.Controllers
         [HttpPost]
         public async Task<ActionResult<object>> PostChatMessage(ChatMessage chatMessage)
         {
+            var userId = GetCurrentUserId();
+            
             var chatSession = await _context.ChatSessions
                 .Include(cs => cs.Document)
                 .FirstOrDefaultAsync(cs => cs.Id == chatMessage.SessionId);
 
             if (chatSession == null)
             {
-                return BadRequest("Invalid Chat Session ID.");
+                return BadRequest(new { error = "ChatSessionNotFound", message = "Chat session not found." });
+            }
+
+            // Authorization: Only session owner can send messages
+            if (chatSession.UserId != userId)
+            {
+                return Forbid();
             }
 
             // 1. Save user message
