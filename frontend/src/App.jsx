@@ -29,7 +29,7 @@ function App() {
             <div className="flex items-center">
               <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Home</Link>
               <Link to="/courses" className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Courses</Link>
-              <Link to="/chat/1" className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Chat (Session 1)</Link>
+              <Link to="/chat-sessions" className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">💬 My Chats</Link>
               
               {isLoggedIn ? (
                 <button onClick={handleLogout} className="ml-4 px-3 py-2 rounded-md text-sm font-medium text-white bg-red-500 hover:bg-red-600">
