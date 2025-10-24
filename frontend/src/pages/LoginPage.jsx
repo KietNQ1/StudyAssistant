@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
+import { Link, useLocation } from 'react-router-dom';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const location = useLocation();
+
+  // Show success message from registration
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+  }, [location]);
 
   const handleCredentialLogin = async (e) => {
     e.preventDefault();
@@ -71,7 +82,23 @@ function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center">Login to your account</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-center text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              Create one now
+            </Link>
+          </p>
+        </div>
+
+        {successMessage && (
+          <div className="p-3 text-sm text-green-700 bg-green-100 border border-green-200 rounded-md">
+            {successMessage}
+          </div>
+        )}
         
         <div className="flex justify-center">
             <GoogleLogin
