@@ -2,361 +2,306 @@ import React, { useState, useEffect } from 'react';
 import { authFetch } from '../utils/authFetch';
 
 function AIGenerateCourseForm({ onCourseGenerated }) {
-  const [allCourses, setAllCourses] = useState([]);
-  const [allDocuments, setAllDocuments] = useState([]);
-  const [selectedDocuments, setSelectedDocuments] = useState([]);
-  const [urls, setUrls] = useState('');
-  const [mode, setMode] = useState('documents'); // 'documents', 'urls', or 'both'
-  const [courseName, setCourseName] = useState('');
-  const [userGoal, setUserGoal] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [fetchingData, setFetchingData] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+    const [allCourses, setAllCourses] = useState([]);
+    const [allDocuments, setAllDocuments] = useState([]);
+    const [selectedDocuments, setSelectedDocuments] = useState([]);
+    const [urls, setUrls] = useState('');
+    const [mode, setMode] = useState('documents');
+    const [courseName, setCourseName] = useState('');
+    const [userGoal, setUserGoal] = useState('');
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [fetchingData, setFetchingData] = useState(true);
+    const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    fetchAllDocuments();
-  }, []);
+    // Fetch all documents
+    useEffect(() => {
+        fetchAllDocuments();
+    }, []);
 
-  const fetchAllDocuments = async () => {
-    setFetchingData(true);
-    try {
-      // Fetch all courses first
-      const courses = await authFetch('/api/Courses');
-      setAllCourses(courses);
+    const fetchAllDocuments = async () => {
+        setFetchingData(true);
+        try {
+            const courses = await authFetch('/api/Courses');
+            setAllCourses(courses);
 
-      // Fetch documents for each course
-      const docsPromises = courses.map(course => 
-        authFetch(`/api/Courses/${course.id}`)
-      );
-      const coursesWithDocs = await Promise.all(docsPromises);
-      
-      // Flatten all documents from all courses
-      const allDocs = coursesWithDocs
-        .flatMap(course => 
-          (course.documents || []).map(doc => ({
-            ...doc,
-            courseName: course.title,
-            courseId: course.id
-          }))
-        )
-        .filter(doc => doc.processingStatus === 'completed'); // Only show processed docs
+            const docsPromises = courses.map((c) => authFetch(`/api/Courses/${c.id}`));
+            const courseDetails = await Promise.all(docsPromises);
 
-      setAllDocuments(allDocs);
-    } catch (err) {
-      setError(`Failed to fetch documents: ${err.message}`);
-    } finally {
-      setFetchingData(false);
-    }
-  };
+            const allDocs = courseDetails
+                .flatMap((course) =>
+                    (course.documents || []).map((doc) => ({
+                        ...doc,
+                        courseName: course.title,
+                        courseId: course.id,
+                    }))
+                )
+                .filter((d) => d.processingStatus === 'completed');
 
-  const toggleDocumentSelection = (docId) => {
-    setSelectedDocuments(prev => {
-      if (prev.includes(docId)) {
-        return prev.filter(id => id !== docId);
-      } else {
-        return [...prev, docId];
-      }
-    });
-  };
+            setAllDocuments(allDocs);
+        } catch (err) {
+            setError(`Failed to fetch documents: ${err.message}`);
+        } finally {
+            setFetchingData(false);
+        }
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate based on mode
-    const urlList = urls.trim() ? urls.split('\n').map(u => u.trim()).filter(u => u) : [];
-    
-    if (mode === 'documents' && selectedDocuments.length === 0) {
-      setError('Please select at least one document');
-      return;
-    }
-    
-    if (mode === 'urls' && urlList.length === 0) {
-      setError('Please enter at least one URL');
-      return;
-    }
-    
-    if (mode === 'both' && selectedDocuments.length === 0 && urlList.length === 0) {
-      setError('Please select documents or enter URLs');
-      return;
-    }
+    const toggleDocumentSelection = (docId) => {
+        setSelectedDocuments((prev) =>
+            prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+        );
+    };
 
-    setLoading(true);
-    setError(null);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const urlList = urls
+            .trim()
+            .split('\n')
+            .map((u) => u.trim())
+            .filter((u) => u);
 
-    try {
-      const payload = {
-        courseName: courseName || null,
-        userGoal: userGoal || null,
-      };
-      
-      // Add documentIds if applicable
-      if ((mode === 'documents' || mode === 'both') && selectedDocuments.length > 0) {
-        payload.documentIds = selectedDocuments;
-      }
-      
-      // Add URLs if applicable
-      if ((mode === 'urls' || mode === 'both') && urlList.length > 0) {
-        payload.urls = urlList;
-      }
+        if (mode === 'documents' && selectedDocuments.length === 0) {
+            setError('Please select at least one document');
+            return;
+        }
+        if (mode === 'urls' && urlList.length === 0) {
+            setError('Please enter at least one URL');
+            return;
+        }
+        if (mode === 'both' && selectedDocuments.length === 0 && urlList.length === 0) {
+            setError('Please select documents or enter URLs');
+            return;
+        }
 
-      const newCourse = await authFetch('/api/Courses/GenerateFromDocuments', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+        setLoading(true);
+        setError(null);
 
-      // Reset form
-      setSelectedDocuments([]);
-      setUrls('');
-      setCourseName('');
-      setUserGoal('');
-      setShowForm(false);
-      
-      if (onCourseGenerated) {
-        onCourseGenerated(newCourse);
-      }
-      
-      alert('Course generated successfully! 🎉');
-    } catch (err) {
-      setError(err.message || 'Failed to generate course');
-    } finally {
-      setLoading(false);
-    }
-  };
+        try {
+            const payload = {
+                courseName: courseName || null,
+                userGoal: userGoal || null,
+            };
+            if ((mode === 'documents' || mode === 'both') && selectedDocuments.length > 0)
+                payload.documentIds = selectedDocuments;
+            if ((mode === 'urls' || mode === 'both') && urlList.length > 0)
+                payload.urls = urlList;
 
-  if (!showForm) {
-    return (
-      <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-6 rounded-lg shadow-md mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-2">✨ AI Course Generator</h3>
-            <p className="text-white/90">Let AI create a structured course from your documents</p>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-white text-purple-600 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
-          >
-            Get Started
-          </button>
-        </div>
-      </div>
-    );
-  }
+            const newCourse = await authFetch('/api/Courses/GenerateFromDocuments', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-md mb-8 border-2 border-purple-200">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-2xl font-bold text-purple-600">✨ Generate Course with AI</h3>
-        <button
-          onClick={() => setShowForm(false)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          ✕
-        </button>
-      </div>
+            setSelectedDocuments([]);
+            setUrls('');
+            setCourseName('');
+            setUserGoal('');
+            setShowForm(false);
 
-      <form onSubmit={handleSubmit}>
-        {/* Mode Selection Tabs */}
-        <div className="mb-6">
-          <label className="block text-gray-700 font-bold mb-3">
-            Content Source
-          </label>
-          <div className="flex gap-2 border-b">
-            <button
-              type="button"
-              onClick={() => setMode('documents')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                mode === 'documents'
-                  ? 'text-purple-600 border-b-2 border-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📄 From Documents
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('urls')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                mode === 'urls'
-                  ? 'text-purple-600 border-b-2 border-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              🌐 From URLs
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('both')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                mode === 'both'
-                  ? 'text-purple-600 border-b-2 border-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              🔀 Both
-            </button>
-          </div>
-        </div>
+            if (onCourseGenerated) onCourseGenerated(newCourse);
+            alert('Course generated successfully! 🎉');
+        } catch (err) {
+            setError(err.message || 'Failed to generate course');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        {/* Course Name (Optional) */}
-        <div className="mb-4">
-          <label htmlFor="course-name" className="block text-gray-700 font-bold mb-2">
-            Course Name (Optional)
-          </label>
-          <input
-            type="text"
-            id="course-name"
-            value={courseName}
-            onChange={(e) => setCourseName(e.target.value)}
-            placeholder="Leave empty to let AI suggest a name"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            If left empty, AI will suggest a course name based on the content
-          </p>
-        </div>
-
-        {/* Learning Goal (Optional) */}
-        <div className="mb-4">
-          <label htmlFor="user-goal" className="block text-gray-700 font-bold mb-2">
-            Your Learning Goal (Optional)
-          </label>
-          <textarea
-            id="user-goal"
-            value={userGoal}
-            onChange={(e) => setUserGoal(e.target.value)}
-            placeholder="E.g., I want to learn web development from scratch"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            rows="3"
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Help AI tailor the course structure to your needs
-          </p>
-        </div>
-
-        {/* URLs Input */}
-        {(mode === 'urls' || mode === 'both') && (
-          <div className="mb-4">
-            <label htmlFor="urls" className="block text-gray-700 font-bold mb-2">
-              URLs (one per line, max 10)
-            </label>
-            <textarea
-              id="urls"
-              value={urls}
-              onChange={(e) => setUrls(e.target.value)}
-              placeholder={"https://example.com/article1\nhttps://example.com/article2"}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
-              rows="5"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              ✨ Enter web pages, blog posts, or articles. AI will extract and analyze the content.
-            </p>
-          </div>
-        )}
-
-        {/* Document Selection */}
-        {(mode === 'documents' || mode === 'both') && (
-          <div className="mb-4">
-            <label className="block text-gray-700 font-bold mb-2">
-              Select Documents ({selectedDocuments.length} selected)
-            </label>
-          
-          {fetchingData ? (
-            <p className="text-gray-500">Loading documents...</p>
-          ) : allDocuments.length === 0 ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-              <p className="text-yellow-800">
-                No processed documents available. Please upload and process some documents first.
-              </p>
-            </div>
-          ) : (
-            <div className="border rounded p-4 max-h-96 overflow-y-auto">
-              {allDocuments.map(doc => (
-                <label
-                  key={doc.id}
-                  className={`flex items-start p-3 mb-2 rounded cursor-pointer transition-colors ${
-                    selectedDocuments.includes(doc.id)
-                      ? 'bg-purple-100 border-2 border-purple-400'
-                      : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDocuments.includes(doc.id)}
-                    onChange={() => toggleDocumentSelection(doc.id)}
-                    className="mt-1 mr-3"
-                  />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-800">{doc.title}</div>
-                    <div className="text-sm text-gray-500">
-                      Course: {doc.courseName}
-                      {doc.extractedText && (
-                        <span className="ml-2">
-                          • {Math.min(doc.extractedText.length, 100)} chars
-                        </span>
-                      )}
+    // 🔹 Initial collapsed card
+    if (!showForm) {
+        return (
+            <div className="p-8 bg-white border border-gray-200 rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.05)] mb-10">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                            <span>✨</span> <span>AI Course Generator</span>
+                        </h2>
+                        <p className="text-gray-500 mt-1 text-sm">
+                            Create structured courses from your own materials.
+                        </p>
                     </div>
-                  </div>
-                </label>
-              ))}
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="bg-black text-white rounded-xl font-semibold px-6 py-2 text-sm hover:bg-gray-800 hover:scale-[1.02] transition-all duration-300 shadow-md"
+                    >
+                        Get Started
+                    </button>
+                </div>
             </div>
-          )}
-          </div>
-        )}
+        );
+    }
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
+    // 🔹 Main Form
+    return (
+        <div
+            className="max-w-3xl bg-white border border-gray-200 shadow-[0_8px_40px_rgba(0,0,0,0.05)] rounded-3xl p-10 transition-all duration-500 ease-out animate-fadeIn"
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-10">
+                <div>
+                    <h2 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                        <span>✨</span> <span>AI Course Generator</span>
+                    </h2>
+                    <p className="text-gray-500 mt-1 text-sm">
+                        Create structured courses from your own materials.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setShowForm(false)}
+                    className="text-gray-500 hover:text-black text-xl font-light transition"
+                >
+                    ✕
+                </button>
+            </div>
 
-        {/* Submit Button */}
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={
-              loading || 
-              fetchingData || 
-              (mode === 'documents' && selectedDocuments.length === 0) ||
-              (mode === 'urls' && !urls.trim()) ||
-              (mode === 'both' && selectedDocuments.length === 0 && !urls.trim())
-            }
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Generating Course with AI...
-              </>
-            ) : (
-              <>
-                ✨ Generate Course
-              </>
-            )}
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setShowForm(false)}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded"
-          >
-            Cancel
-          </button>
+            <form onSubmit={handleSubmit}>
+                {/* Mode selection */}
+                <div className="mb-10">
+                    <label className="block text-gray-800 font-semibold mb-4 text-lg">
+                        Content Source
+                    </label>
+                    <div className="flex gap-4">
+                        {['documents', 'urls', 'both'].map((m) => (
+                            <button
+                                key={m}
+                                type="button"
+                                onClick={() => setMode(m)}
+                                className={`mode-btn px-5 py-2 rounded-full text-sm font-medium border transition-all duration-300 shadow-sm ${mode === m
+                                        ? 'bg-black text-white border-black scale-105 shadow-md'
+                                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                                    }`}
+                            >
+                                {m === 'documents'
+                                    ? '📄 Documents'
+                                    : m === 'urls'
+                                        ? '🌐 URLs'
+                                        : '🔀 Both'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Course name */}
+                <div className="mb-8">
+                    <label className="block text-gray-800 font-semibold mb-2">
+                        Course Name
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="Let AI name it for you"
+                        value={courseName}
+                        onChange={(e) => setCourseName(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base bg-white focus:ring-2 focus:ring-black outline-none shadow-sm focus:shadow-md transition"
+                    />
+                </div>
+
+                {/* Learning Goal */}
+                <div className="mb-8">
+                    <label className="block text-gray-800 font-semibold mb-2">
+                        Learning Goal
+                    </label>
+                    <textarea
+                        placeholder="E.g., I want to master backend development fundamentals"
+                        value={userGoal}
+                        onChange={(e) => setUserGoal(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 h-28 text-base bg-white focus:ring-2 focus:ring-black outline-none shadow-sm focus:shadow-md transition"
+                    ></textarea>
+                </div>
+
+                {/* URLs section */}
+                {(mode === 'urls' || mode === 'both') && (
+                    <div
+                        className="transition-all duration-700 ease-in-out mb-8 opacity-100 translate-y-0"
+                    >
+                        <label className="block text-gray-800 font-semibold mb-2">
+                            URLs (one per line)
+                        </label>
+                        <textarea
+                            placeholder="https://example.com/article1"
+                            value={urls}
+                            onChange={(e) => setUrls(e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-3 h-28 font-mono text-sm bg-white focus:ring-2 focus:ring-black outline-none shadow-sm focus:shadow-md transition"
+                        ></textarea>
+                    </div>
+                )}
+
+                {/* Documents section */}
+                {(mode === 'documents' || mode === 'both') && (
+                    <div className="transition-all duration-700 ease-in-out opacity-100 translate-y-0">
+                        <label className="block text-gray-800 font-semibold mb-3">
+                            Select Documents
+                        </label>
+
+                        {fetchingData ? (
+                            <p className="text-gray-500">Loading documents...</p>
+                        ) : allDocuments.length === 0 ? (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                                <p className="text-yellow-800">
+                                    No processed documents available. Please upload and process some documents first.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="border border-gray-200 rounded-2xl p-4 max-h-64 overflow-y-auto space-y-3 bg-white shadow-inner">
+                                {allDocuments.map((doc) => (
+                                    <label
+                                        key={doc.id}
+                                        className={`flex items-start p-4 rounded-xl cursor-pointer border transition ${selectedDocuments.includes(doc.id)
+                                                ? 'bg-gray-100 border-gray-400'
+                                                : 'bg-white hover:bg-gray-50 border-gray-200'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedDocuments.includes(doc.id)}
+                                            onChange={() => toggleDocumentSelection(doc.id)}
+                                            className="mt-1 mr-3 accent-black"
+                                        />
+                                        <div>
+                                            <div className="font-medium">{doc.title}</div>
+                                            <div className="text-sm text-gray-500">
+                                                Course: {doc.courseName}
+                                            </div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Error */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6">
+                        <p className="text-red-700">{error}</p>
+                    </div>
+                )}
+
+                {/* Buttons */}
+                <div className="flex gap-4 mt-10">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-6 py-3 bg-black text-white rounded-xl font-semibold text-base hover:bg-gray-800 hover:scale-[1.02] transition-all duration-300 shadow-md disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {loading ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                Generating...
+                            </>
+                        ) : (
+                            '✨ Generate'
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShowForm(false)}
+                        className="px-6 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-100 transition-all duration-300 shadow-sm"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </div>
-
-        {loading && (
-          <div className="mt-4 bg-blue-50 border border-blue-200 rounded p-4">
-            <p className="text-blue-800">
-              🤖 AI is analyzing your documents and creating a course structure...
-              <br />
-              This may take 30-60 seconds depending on the content size.
-            </p>
-          </div>
-        )}
-      </form>
-    </div>
-  );
+    );
 }
 
 export default AIGenerateCourseForm;
