@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using myapp.Data;
@@ -49,7 +49,8 @@ namespace myapp.Controllers
 
         private string ExtractJsonFromMarkdown(string text)
         {
-            var match = Regex.Match(text, @"```json\s*([\s\S]*?)\s*```");
+            // Cho phép JSON chứa nhiều ký tự đặc biệt trong block ```json ... ```
+            var match = Regex.Match(text, @"```json\s*([\s\S!@#$%^&*()_\-+=\[\]{};:'"",.<>?/|`~]*?)\s*```");
             if (match.Success)
             {
                 return match.Groups[1].Value;
