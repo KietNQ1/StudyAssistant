@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { BookOpen, FileText, Brain, Play, Upload, Plus, ChevronRight, Award, Clock } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { BookOpen, FileText, Brain, Play, Upload, Plus, ChevronRight, Award, Clock, MessageCircle, Loader2 } from 'lucide-react';
 import UploadDocumentForm from '../components/UploadDocumentForm';
 import GenerateQuizForm from '../components/GenerateQuizForm';
 import TopicsList from '../components/TopicsList';
@@ -10,7 +10,9 @@ function CourseDetailPage() {
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [creatingChat, setCreatingChat] = useState(null);
     const { id } = useParams();
+    const navigate = useNavigate();
 
     const fetchCourseDetails = async () => {
         if (!id) return;
@@ -41,6 +43,27 @@ function CourseDetailPage() {
             ...prevCourse,
             quizzes: [...prevCourse.quizzes, newQuiz],
         }));
+    };
+
+    // Create chat session with document (RAG-enabled)
+    const handleChatWithDocument = async (document) => {
+        setCreatingChat(document.id);
+        try {
+            const newSession = await authFetch('/api/ChatSessions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: `Chat về: ${document.title}`,
+                    courseId: course.id,
+                    documentId: document.id
+                })
+            });
+            
+            navigate(`/chat-sessions/${newSession.id}`);
+        } catch (err) {
+            alert(`Failed to create chat: ${err.message}`);
+        } finally {
+            setCreatingChat(null);
+        }
     };
 
     if (loading) {
@@ -158,18 +181,56 @@ function CourseDetailPage() {
                                     {course.documents.map(doc => (
                                         <div
                                             key={doc.id}
-                                            className="group flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-900 hover:shadow-md transition-all"
+                                            className="group p-4 border border-gray-200 rounded-lg hover:border-gray-900 hover:shadow-md transition-all"
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                                    <FileText className="w-5 h-5 text-gray-600" />
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex items-start gap-3 flex-1">
+                                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                        <FileText className="w-5 h-5 text-gray-600" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-gray-900">{doc.title}</p>
+                                                        <p className="text-sm text-gray-500">{doc.fileType}</p>
+                                                        
+                                                        {/* Processing Status Badge */}
+                                                        {doc.processingStatus && (
+                                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded mt-2 ${
+                                                                doc.processingStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                                                                doc.processingStatus === 'failed' ? 'bg-red-100 text-red-700' :
+                                                                'bg-yellow-100 text-yellow-700'
+                                                            }`}>
+                                                                {doc.processingStatus === 'completed' ? '✅ Ready for RAG' :
+                                                                 doc.processingStatus === 'failed' ? '❌ Processing Failed' :
+                                                                 '⏳ Processing...'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{doc.title}</p>
-                                                    <p className="text-sm text-gray-500">{doc.fileType}</p>
-                                                </div>
+                                                
+                                                {/* Chat Button */}
+                                                <button
+                                                    onClick={() => handleChatWithDocument(doc)}
+                                                    disabled={creatingChat === doc.id || doc.processingStatus !== 'completed'}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
+                                                        doc.processingStatus === 'completed' && creatingChat !== doc.id
+                                                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    }`}
+                                                    title={doc.processingStatus === 'completed' ? 'Chat with this document using AI' : 'Document must be processed first'}
+                                                >
+                                                    {creatingChat === doc.id ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                            Creating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <MessageCircle className="w-4 h-4" />
+                                                            Chat với tài liệu
+                                                        </>
+                                                    )}
+                                                </button>
                                             </div>
-                                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                                         </div>
                                     ))}
                                 </div>

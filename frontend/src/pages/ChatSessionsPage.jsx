@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { HubConnectionBuilder } from '@microsoft/signalr';
 import { authFetch } from '../utils/authFetch';
 import ChatSidebar from '../components/ChatSidebar';
+import ChatDocumentManager from '../components/ChatDocumentManager';
 
 function ChatSessionsPage() {
     const [connection, setConnection] = useState(null);
@@ -11,6 +12,7 @@ function ChatSessionsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [currentSession, setCurrentSession] = useState(null);
 
     const { sessionId } = useParams();
     const chatContainerRef = useRef(null);
@@ -28,6 +30,7 @@ function ChatSessionsPage() {
             try {
                 const sessionData = await authFetch(`/api/ChatSessions/${sessionId}`);
                 setMessages(sessionData.chatMessages || []);
+                setCurrentSession(sessionData); // Store session data for courseId
                 setError(null);
             } catch (err) {
                 setError(`Failed to load chat history: ${err.message}`);
@@ -146,6 +149,14 @@ function ChatSessionsPage() {
                     </div>
                 ) : (
                     <>
+                        {/* Document Manager */}
+                        {currentSession && (
+                            <ChatDocumentManager 
+                                sessionId={parseInt(sessionId)} 
+                                courseId={currentSession.courseId} 
+                            />
+                        )}
+                        
                         {/* Chat Messages */}
                         <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
                             {loading ? (

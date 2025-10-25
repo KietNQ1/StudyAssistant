@@ -19,6 +19,7 @@ namespace myapp.Models
         [ForeignKey("CourseId")]
         public Course? Course { get; set; }
 
+        // DEPRECATED: Use ChatSessionDocuments for multi-document support
         public int? DocumentId { get; set; }
         [ForeignKey("DocumentId")]
         public Document? Document { get; set; }
@@ -32,5 +33,8 @@ namespace myapp.Models
         public DateTime? LastMessageAt { get; set; }
 
         public virtual ICollection<ChatMessage> ChatMessages { get; set; } = new List<ChatMessage>();
+        
+        // NEW: Many-to-many relationship with Documents
+        public virtual ICollection<ChatSessionDocument> ChatSessionDocuments { get; set; } = new List<ChatSessionDocument>();
     }
 }
