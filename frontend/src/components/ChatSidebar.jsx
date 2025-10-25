@@ -123,7 +123,7 @@ function ChatSidebar({ isCollapsed, onToggle }) {
 
     // ===== Expanded sidebar =====
     return (
-        <aside className="w-72 bg-[#202123] text-[#d1d5db] flex flex-col h-screen shadow-lg">
+        <aside className="w-72 bg-[#202123] text-[#d1d5db] flex flex-col h-[calc(100vh-64px)] shadow-lg relative">
             {/* === New Chat Button === */}
             <div className="p-4 border-b border-white/10">
                 <button
@@ -135,7 +135,7 @@ function ChatSidebar({ isCollapsed, onToggle }) {
             </div>
 
             {/* === Chat List === */}
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-3 pb-20">
                 {loading ? (
                     <p className="text-center text-gray-400 mt-10 text-sm">Loading...</p>
                 ) : sessions.length === 0 ? (
@@ -149,7 +149,7 @@ function ChatSidebar({ isCollapsed, onToggle }) {
                             <div
                                 key={session.id}
                                 onClick={() => navigate(`/chat-sessions/${session.id}`)}
-                                className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm transition truncate ${session.id === currentSessionId
+                                className={`group relative flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm transition ${session.id === currentSessionId
                                         ? 'bg-[#40414f] text-white'
                                         : 'hover:bg-[#343541]'
                                     }`}
@@ -172,27 +172,27 @@ function ChatSidebar({ isCollapsed, onToggle }) {
                                         />
                                         <button
                                             onClick={() => handleRename(session.id)}
-                                            className="text-green-400 hover:text-green-300"
+                                            className="text-green-400 hover:text-green-300 p-1"
                                         >
                                             ✓
                                         </button>
                                         <button
                                             onClick={() => setEditingId(null)}
-                                            className="text-red-400 hover:text-red-300"
+                                            className="text-red-400 hover:text-red-300 p-1"
                                         >
                                             ✕
                                         </button>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <i className="fa-solid fa-message text-white/60 text-xs"></i>
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <i className="fa-solid fa-message text-white/60 text-xs flex-shrink-0"></i>
                                             <span className="truncate">{session.title}</span>
                                         </div>
 
                                         {/* Hover actions */}
                                         <div
-                                            className="hidden group-hover:flex gap-1"
+                                            className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <button
@@ -202,14 +202,14 @@ function ChatSidebar({ isCollapsed, onToggle }) {
                                                     setEditTitle(session.title);
                                                 }}
                                                 title="Rename"
-                                                className="text-white/60 hover:text-white"
+                                                className="text-white/60 hover:text-white p-1"
                                             >
                                                 <i className="fa-solid fa-pen text-xs"></i>
                                             </button>
                                             <button
                                                 onClick={(e) => handleDelete(session.id, e)}
                                                 title="Delete"
-                                                className="text-red-400 hover:text-red-300"
+                                                className="text-red-400 hover:text-red-300 p-1"
                                             >
                                                 <i className="fa-solid fa-trash text-xs"></i>
                                             </button>
@@ -223,7 +223,7 @@ function ChatSidebar({ isCollapsed, onToggle }) {
             </div>
 
             {/* === Footer === */}
-            <div className="p-4 border-t border-white/10">
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-[#202123]">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-[#4b5563] rounded-full flex items-center justify-center font-semibold text-white">
                         {localStorage.getItem('user_email')?.charAt(0).toUpperCase() || 'U'}
