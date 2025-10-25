@@ -1,4 +1,4 @@
-using Google.Cloud.AIPlatform.V1;
+﻿using Google.Cloud.AIPlatform.V1;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Google.Protobuf.WellKnownTypes;
@@ -89,28 +89,29 @@ namespace myapp.Services
 
         public async Task<string> GenerateCourseStructureAsync(string documentsContent, string userGoal = "")
         {
-            var prompt = $@"You are an expert educational course designer. Based on the following documents content, create a comprehensive course structure.
+            var prompt = $@"You are a **professional online course designer** experienced in creating structured, engaging, and outcome-driven courses for platforms like **Udemy** or **Coursera**.  
+Your goal is to transform the provided content into a **clear, progressive, and motivational learning journey**.
 
 Documents Content:
 {documentsContent}
 
 User's Learning Goal (if provided): {userGoal}
 
-Please analyze the content and create a well-structured course outline with the following JSON format:
+Please analyze the materials and create a **well-structured, Udemy-style course outline** using the following JSON format:
 {{
-  ""courseTitle"": ""Suggested course title based on content"",
-  ""courseDescription"": ""Brief description of what students will learn"",
+  ""courseTitle"": ""Catchy and professional title based on the main theme of the documents"",
+  ""courseDescription"": ""Short but inspiring summary (2–4 sentences) describing what students will learn, who it's for, and why it's valuable"",
   ""topics"": [
     {{
-      ""title"": ""Topic 1 Title"",
-      ""description"": ""What this topic covers"",
-      ""content"": ""Detailed content summary for this topic"",
+      ""title"": ""Topic 1 Title (make it student-focused, actionable)"",
+      ""description"": ""Overview of what this topic covers and what students will achieve"",
+      ""content"": ""Provide a detailed explanation of the course content for this topic. Include examples or illustrations when relevant to help learners better understand complex ideas."",
       ""estimatedTimeMinutes"": 30,
       ""subtopics"": [
         {{
-          ""title"": ""Subtopic 1.1"",
-          ""description"": ""What this subtopic covers"",
-          ""content"": ""Detailed content for subtopic"",
+          ""title"": ""Subtopic 1.1 Title (focused on a key skill or concept)"",
+          ""description"": ""What this subtopic teaches and its relevance"",
+          ""content"": ""1–3 sentences summarizing the key ideas or activities"",
           ""estimatedTimeMinutes"": 15
         }}
       ]
@@ -119,18 +120,21 @@ Please analyze the content and create a well-structured course outline with the 
 }}
 
 Guidelines:
-1. Create 3-7 main topics that logically organize the content
-2. Each main topic can have 0-5 subtopics
-3. Estimate realistic time needed for each topic/subtopic
-4. Make sure topics flow logically from basics to advanced
-5. Extract and summarize relevant content for each topic from the documents
-6. Keep descriptions and content concise (1-3 sentences each)
-7. Return ONLY valid JSON, no additional text or explanation
-8. IMPORTANT: Complete the entire JSON structure properly - do not truncate
+1. Create **3–7 main topics** that represent logical learning stages (e.g., Foundations → Practice → Advanced Mastery).
+2. Each main topic may include **0–5 subtopics** that expand on specific areas.
+3. Provide **realistic time estimates** for each topic/subtopic.
+4. Ensure topics **progress logically** from beginner to advanced concepts.
+5. Use **engaging, learner-centered language** — focus on what the student will gain or be able to do.
+6. Summarize only the **most relevant and actionable** content from the documents.
+7. Keep all text **concise and professional** (1–4 sentences per field).
+8. Output **ONLY valid JSON**, no extra explanation or text.
+9. **Do not truncate** — the full JSON structure must be complete.
+10. **Generate the entire result in the same language as the User’s Learning Goal.**
 
-Generate the course structure now:";
+Generate the full Udemy-style course structure now:";
 
-            return await PredictTextAsync(prompt, temperature: 0.3, maxTokens: 8000);
+            return await PredictTextAsync(prompt, temperature: 0.35, maxTokens: 8000);
         }
+
     }
 }

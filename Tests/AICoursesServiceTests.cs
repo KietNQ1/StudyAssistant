@@ -13,7 +13,9 @@ namespace StudyAssistant.Tests
     /// <summary>
     /// Unit Tests for AI Course Generation Feature
     /// Testing course CRUD operations with mocked database context
-    /// Total: 15 test cases covering 4 main operations (Create, Read, Update, Delete)
+    /// Total: 25 test cases covering 5 test groups
+    /// Group 1: GetById (4 tests) | Group 2: Create (4 tests) | Group 3: Update (4 tests)
+    /// Group 4: Delete (3 tests) | Group 5: Edge Cases & Performance (10 tests)
     /// Feature: AI-powered course generation and management
     /// </summary>
     public class AICoursesServiceTests : IDisposable
@@ -495,6 +497,251 @@ namespace StudyAssistant.Tests
             _context.Topics.Should().NotContain(t => t.CourseId == courseId);
             _output.WriteLine("   ✓ Course and topics deleted successfully");
             _output.WriteLine("   ✓ Test PASSED - Cascade delete working");
+        }
+
+        #endregion
+
+        #region Test Group 5: Edge Cases & Performance Tests (10 test cases)
+
+        [Fact]
+        public async Task Test16_CreateCourse_NullDescription_CreatesSuccessfully()
+        {
+            _output.WriteLine("\n▶ TEST 16: Create Course With Null Description");
+
+            // Arrange
+            var course = new Course
+            {
+                Title = "Course Without Description",
+                Description = null!
+            };
+
+            // Act
+            var result = await _service.CreateAsync(course);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Description.Should().BeNull();
+            _output.WriteLine("   ✓ Test PASSED - Null description allowed");
+        }
+
+        [Fact]
+        public async Task Test17_CreateCourse_SpecialCharactersInTitle_CreatesSuccessfully()
+        {
+            _output.WriteLine("\n▶ TEST 17: Create Course With Special Characters");
+
+            // Arrange
+            var course = new Course
+            {
+                Title = "C++ & C# Programming: Advanced 🚀",
+                Description = "Special chars test"
+            };
+
+            // Act
+            var result = await _service.CreateAsync(course);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Title.Should().Contain("C++");
+            result.Title.Should().Contain("🚀");
+            _output.WriteLine("   ✓ Test PASSED - Special characters handled");
+        }
+
+        [Fact]
+        public async Task Test18_CreateCourse_VeryLongTitle_CreatesSuccessfully()
+        {
+            _output.WriteLine("\n▶ TEST 18: Create Course With Very Long Title");
+
+            // Arrange
+            var longTitle = new string('A', 500);
+            var course = new Course
+            {
+                Title = longTitle,
+                Description = "Long title test"
+            };
+
+            // Act
+            var result = await _service.CreateAsync(course);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Title.Length.Should().Be(500);
+            _output.WriteLine($"   ✓ Test PASSED - Long title ({longTitle.Length} chars) handled");
+        }
+
+        [Fact]
+        public async Task Test19_GetCourseById_WithMultipleTopics_ReturnsAllTopics()
+        {
+            _output.WriteLine("\n▶ TEST 19: Get Course With Multiple Topics");
+
+            // Arrange
+            var course = new Course
+            {
+                Title = "Comprehensive Course",
+                Description = "Has many topics"
+            };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync();
+
+            // Add 10 topics
+            for (int i = 1; i <= 10; i++)
+            {
+                _context.Topics.Add(new Topic
+                {
+                    Title = $"Topic {i}",
+                    CourseId = course.Id,
+                    Course = course,
+                    OrderIndex = i
+                });
+            }
+            await _context.SaveChangesAsync();
+            _output.WriteLine($"└─ Created course with 10 topics");
+
+            // Act
+            var result = await _service.GetByIdAsync(course.Id);
+
+            // Assert
+            result.Should().NotBeNull();
+            result!.Topics.Should().HaveCount(10);
+            result.Topics.Should().BeInAscendingOrder(t => t.OrderIndex);
+            _output.WriteLine("   ✓ Test PASSED - All 10 topics retrieved in order");
+        }
+
+        [Fact]
+        public async Task Test20_UpdateCourse_WhitespaceOnlyTitle_ThrowsException()
+        {
+            _output.WriteLine("\n▶ TEST 20: Update Course With Whitespace-Only Title");
+
+            // Arrange
+            var course = new Course { Title = "Valid Title", Description = "Test" };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync();
+
+            // Act
+            course.Title = "   ";
+            Func<Task> act = async () => await _service.UpdateAsync(course.Id, course);
+
+            // Assert
+            await act.Should().ThrowAsync<ArgumentException>();
+            _output.WriteLine("   ✓ Test PASSED - Whitespace-only title rejected");
+        }
+
+        [Fact]
+        public async Task Test21_CreateMultipleCourses_ConcurrentCreation_AllSucceed()
+        {
+            _output.WriteLine("\n▶ TEST 21: Create Multiple Courses Concurrently");
+
+            // Arrange
+            var courses = Enumerable.Range(1, 5).Select(i => new Course
+            {
+                Title = $"Concurrent Course {i}",
+                Description = $"Course {i} description"
+            }).ToList();
+
+            // Act
+            var tasks = courses.Select(c => _service.CreateAsync(c));
+            var results = await Task.WhenAll(tasks);
+
+            // Assert
+            results.Should().HaveCount(5);
+            results.Should().OnlyContain(r => r.Id > 0);
+            _context.Courses.Count().Should().Be(5);
+            _output.WriteLine("   ✓ Test PASSED - 5 courses created concurrently");
+        }
+
+        [Fact]
+        public async Task Test22_DeleteCourse_WithMultipleTopics_DeletesAllRelatedData()
+        {
+            _output.WriteLine("\n▶ TEST 22: Delete Course With Multiple Topics");
+
+            // Arrange
+            var course = new Course { Title = "Course with Many Topics", Description = "Test" };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync();
+
+            // Add 5 topics
+            for (int i = 1; i <= 5; i++)
+            {
+                _context.Topics.Add(new Topic
+                {
+                    Title = $"Topic {i}",
+                    CourseId = course.Id,
+                    Course = course,
+                    OrderIndex = i
+                });
+            }
+            await _context.SaveChangesAsync();
+            var courseId = course.Id;
+            _output.WriteLine($"└─ Created course with 5 topics");
+
+            // Act
+            var result = await _service.DeleteAsync(courseId);
+
+            // Assert
+            result.Should().BeTrue();
+            _context.Courses.Should().NotContain(c => c.Id == courseId);
+            _context.Topics.Count(t => t.CourseId == courseId).Should().Be(0);
+            _output.WriteLine("   ✓ Test PASSED - Course and all 5 topics deleted");
+        }
+
+        [Fact]
+        public async Task Test23_UpdateCourse_ToExistingTitle_UpdatesSuccessfully()
+        {
+            _output.WriteLine("\n▶ TEST 23: Update Course To Existing Title (Duplicate Check)");
+
+            // Arrange
+            var course1 = new Course { Title = "Existing Course", Description = "First" };
+            var course2 = new Course { Title = "Another Course", Description = "Second" };
+            _context.Courses.AddRange(course1, course2);
+            await _context.SaveChangesAsync();
+
+            // Act - Update course2 to have same title as course1
+            course2.Title = "Existing Course";
+            var result = await _service.UpdateAsync(course2.Id, course2);
+
+            // Assert - Should allow duplicate titles
+            result.Should().BeTrue();
+            _context.Courses.Count(c => c.Title == "Existing Course").Should().Be(2);
+            _output.WriteLine("   ✓ Test PASSED - Duplicate titles allowed on update");
+        }
+
+        [Fact]
+        public async Task Test24_CreateCourse_NullTitle_ThrowsException()
+        {
+            _output.WriteLine("\n▶ TEST 24: Create Course With Null Title");
+
+            // Arrange
+            var course = new Course
+            {
+                Title = null!,
+                Description = "Course without title"
+            };
+
+            // Act
+            Func<Task> act = async () => await _service.CreateAsync(course);
+
+            // Assert
+            await act.Should().ThrowAsync<ArgumentException>()
+                .WithMessage("*Title*required*");
+            _output.WriteLine("   ✓ Test PASSED - Null title rejected");
+        }
+
+        [Fact]
+        public async Task Test25_UpdateCourse_NullTitle_ThrowsException()
+        {
+            _output.WriteLine("\n▶ TEST 25: Update Course With Null Title");
+
+            // Arrange
+            var course = new Course { Title = "Valid Title", Description = "Test" };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync();
+
+            // Act
+            course.Title = null!;
+            Func<Task> act = async () => await _service.UpdateAsync(course.Id, course);
+
+            // Assert
+            await act.Should().ThrowAsync<ArgumentException>();
+            _output.WriteLine("   ✓ Test PASSED - Null title rejected on update");
         }
 
         #endregion
