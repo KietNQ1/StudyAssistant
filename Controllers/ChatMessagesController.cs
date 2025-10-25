@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.SignalR;
 using myapp.Hubs;
 using Pgvector.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace myapp.Controllers
 {
@@ -28,6 +29,17 @@ namespace myapp.Controllers
             _context = context;
             _vertexAIService = vertexAIService;
             _hubContext = hubContext;
+        }
+
+        // Helper method to get current user ID from JWT token
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                throw new UnauthorizedAccessException("User ID not found in token");
+            }
+            return userId;
         }
 
         // GET: api/ChatMessages
@@ -58,13 +70,23 @@ namespace myapp.Controllers
         [HttpPost]
         public async Task<ActionResult<object>> PostChatMessage(ChatMessage chatMessage)
         {
+            var userId = GetCurrentUserId();
+            
             var chatSession = await _context.ChatSessions
                 .Include(cs => cs.Document)
+                .Include(cs => cs.ChatSessionDocuments)
+                    .ThenInclude(csd => csd.Document)
                 .FirstOrDefaultAsync(cs => cs.Id == chatMessage.SessionId);
 
             if (chatSession == null)
             {
-                return BadRequest("Invalid Chat Session ID.");
+                return BadRequest(new { error = "ChatSessionNotFound", message = "Chat session not found." });
+            }
+
+            // Authorization: Only session owner can send messages
+            if (chatSession.UserId != userId)
+            {
+                return Forbid();
             }
 
             // 1. Save user message
@@ -79,40 +101,74 @@ namespace myapp.Controllers
             try
             {
                 string documentContext = "";
-                if (chatSession.Document != null && !string.IsNullOrEmpty(chatSession.Document.ExtractedText))
+                
+                // NEW: Support multiple documents via ChatSessionDocuments
+                var documentIds = new List<int>();
+                
+                // Get document IDs from new many-to-many relationship
+                if (chatSession.ChatSessionDocuments.Any())
+                {
+                    documentIds = chatSession.ChatSessionDocuments.Select(csd => csd.DocumentId).ToList();
+                }
+                // Fallback: Use legacy single document if no multi-documents attached
+                else if (chatSession.Document != null)
+                {
+                    documentIds.Add(chatSession.Document.Id);
+                }
+
+                if (documentIds.Any())
                 {
                     // Generate embedding for user query
                     var userQueryEmbedding = await _vertexAIService.GenerateEmbeddingAsync(chatMessage.Content);
 
-                    // Perform vector search for relevant document chunks
-                    var relevantChunks = await _context.DocumentChunks
-                        .Where(dc => dc.DocumentId == chatSession.Document.Id && dc.EmbeddingVector != null)
-                        .OrderByDescending(dc => dc.EmbeddingVector.CosineDistance(userQueryEmbedding)) // For PostgreSQL with pgvector
-                        .Take(5) // Get top 5 most relevant chunks
+                    // Get all chunks from ALL attached documents (SQLite doesn't support vector operations)
+                    var allChunks = await _context.DocumentChunks
+                        .Where(dc => documentIds.Contains(dc.DocumentId) && dc.EmbeddingVector != null)
                         .ToListAsync();
 
-                    if (relevantChunks.Any())
+                    if (allChunks.Any())
                     {
-                        documentContext = string.Join("\n\n", relevantChunks.Select(dc => dc.Content));
+                        // Calculate cosine similarity in memory
+                        var chunksWithSimilarity = allChunks.Select(chunk => new
+                        {
+                            Chunk = chunk,
+                            Similarity = CosineSimilarity(userQueryEmbedding, chunk.EmbeddingVector)
+                        })
+                        .OrderByDescending(x => x.Similarity)
+                        .Take(10) // Get top 10 chunks (more since multiple documents)
+                        .ToList();
+
+                        // Group chunks by document for better context
+                        var docNames = await _context.Documents
+                            .Where(d => documentIds.Contains(d.Id))
+                            .ToDictionaryAsync(d => d.Id, d => d.Title);
+
+                        documentContext = "Relevant information from your documents:\n\n" + 
+                            string.Join("\n\n", chunksWithSimilarity.Select(x => 
+                                $"[From: {docNames.GetValueOrDefault(x.Chunk.DocumentId, "Unknown")}]\n{x.Chunk.Content}"));
 
                         // Create citations
-                        foreach (var chunk in relevantChunks)
+                        foreach (var item in chunksWithSimilarity)
                         {
                             citations.Add(new MessageCitation
                             {
-                                DocumentId = chunk.DocumentId,
-                                ChunkId = chunk.Id,
-                                PageNumber = chunk.PageNumber,
-                                QuoteText = chunk.Content.Length > 200 ? chunk.Content.Substring(0, 200) + "..." : chunk.Content,
-                                RelevanceScore = 1.0, // Placeholder
+                                DocumentId = item.Chunk.DocumentId,
+                                ChunkId = item.Chunk.Id,
+                                PageNumber = item.Chunk.PageNumber,
+                                QuoteText = item.Chunk.Content.Length > 200 ? item.Chunk.Content.Substring(0, 200) + "..." : item.Chunk.Content,
+                                RelevanceScore = item.Similarity,
                             });
                         }
                     }
                     else
                     {
-                        documentContext = chatSession.Document.ExtractedText.Length > 4000 
-                                        ? chatSession.Document.ExtractedText.Substring(0, 4000) 
-                                        : chatSession.Document.ExtractedText;
+                        // Fallback: use full document text if no chunks found
+                        var documents = await _context.Documents
+                            .Where(d => documentIds.Contains(d.Id) && !string.IsNullOrEmpty(d.ExtractedText))
+                            .ToListAsync();
+                        
+                        documentContext = string.Join("\n\n---\n\n", documents.Select(d => 
+                            $"[Document: {d.Title}]\n{(d.ExtractedText.Length > 2000 ? d.ExtractedText.Substring(0, 2000) : d.ExtractedText)}"));
                     }
                 }
                 
@@ -128,7 +184,12 @@ namespace myapp.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error generating AI response or vector search: {ex.Message}");
+                Console.WriteLine($"❌ ERROR in RAG processing: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
                 aiResponseContent = "Sorry, I am having trouble processing your request right now.";
             }
 
@@ -210,6 +271,36 @@ namespace myapp.Controllers
         private bool ChatMessageExists(int id)
         {
             return _context.ChatMessages.Any(e => e.Id == id);
+        }
+
+        // Helper method to calculate cosine similarity between two vectors
+        private double CosineSimilarity(float[] vectorA, float[] vectorB)
+        {
+            if (vectorA == null || vectorB == null || vectorA.Length != vectorB.Length)
+            {
+                return 0.0;
+            }
+
+            double dotProduct = 0.0;
+            double magnitudeA = 0.0;
+            double magnitudeB = 0.0;
+
+            for (int i = 0; i < vectorA.Length; i++)
+            {
+                dotProduct += vectorA[i] * vectorB[i];
+                magnitudeA += vectorA[i] * vectorA[i];
+                magnitudeB += vectorB[i] * vectorB[i];
+            }
+
+            magnitudeA = Math.Sqrt(magnitudeA);
+            magnitudeB = Math.Sqrt(magnitudeB);
+
+            if (magnitudeA == 0.0 || magnitudeB == 0.0)
+            {
+                return 0.0;
+            }
+
+            return dotProduct / (magnitudeA * magnitudeB);
         }
     }
 }

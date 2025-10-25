@@ -1,157 +1,164 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import ChatSidebar from '../components/ChatSidebar';
 import { authFetch } from '../utils/authFetch';
 
 function ChatPage() {
-    const [connection, setConnection] = useState(null);
+    const { sessionId } = useParams();
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const chatContainerRef = useRef(null);
 
-    const { sessionId } = useParams();
-    const chatContainerRef = useRef(null); // Ref for the message container div
-
-    // Fetch initial chat history
+    // ===== Fetch messages =====
     useEffect(() => {
-        const fetchChatHistory = async () => {
-            if (!sessionId) return;
-            setLoading(true);
-            try {
-                const sessionData = await authFetch(`/api/ChatSessions/${sessionId}`);
-                setMessages(sessionData.chatMessages || []);
-            } catch (err) {
-                setError(`Failed to load chat history: ${err.message}`);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchChatHistory();
+        if (!sessionId) return;
+        fetchMessages();
     }, [sessionId]);
 
-    // Set up and manage SignalR connection
-    useEffect(() => {
-        const token = localStorage.getItem('jwt_token');
-        if (!token) {
-            window.location.href = '/login';
-            return;
+    const fetchMessages = async () => {
+        setLoading(true);
+        try {
+            const data = await authFetch(`/api/ChatMessages/by-session/${sessionId}`);
+            setMessages(data);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
+    };
 
-        const newConnection = new HubConnectionBuilder()
-            .withUrl("/chathub", { accessTokenFactory: () => token })
-            .withAutomaticReconnect()
-            .build();
+    // ===== Send new message =====
+    const handleSend = async () => {
+        if (!inputMessage.trim()) return;
 
-        setConnection(newConnection);
-
-        return () => {
-            newConnection.stop();
+        const userMessage = {
+            id: Date.now(),
+            sender: 'User',
+            content: inputMessage,
+            createdAt: new Date().toISOString(),
         };
-    }, []);
+        setMessages((prev) => [...prev, userMessage]);
+        setInputMessage('');
 
-    useEffect(() => {
-        if (connection) {
-            connection.start()
-                .then(() => {
-                    console.log('Connected to Chat Hub!');
-                    connection.invoke("JoinChatSession", sessionId.toString());
-
-                    connection.on("ReceiveMessage", (message) => {
-                        setMessages(prevMessages => [...prevMessages, message]);
-                    });
-                })
-                .catch(e => {
-                    console.log('Connection failed: ', e);
-                    setError('Real-time connection to the server failed.');
-                });
+        try {
+            const aiResponse = await authFetch(`/api/ChatMessages`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionId: parseInt(sessionId),
+                    content: inputMessage,
+                }),
+            });
+            // Append AI message
+            setMessages((prev) => [...prev, aiResponse]);
+        } catch (err) {
+            console.error('Send failed:', err);
         }
-    }, [connection, sessionId]);
-    
-    // Auto-scroll to bottom when new messages are added
+    };
+
+    // ===== Auto-scroll on message update =====
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    const sendMessage = async (e) => {
-        e.preventDefault();
-        if (inputMessage.trim() && connection) {
-            // 1. Optimistic UI Update: Add user's message immediately
-            const userMessage = {
-                sessionId: parseInt(sessionId),
-                content: inputMessage.trim(),
-                role: "user",
-                createdAt: new Date().toISOString(), // Temporary timestamp
-            };
-            setMessages(prevMessages => [...prevMessages, userMessage]);
-            setInputMessage('');
-
-            // 2. Send to backend without waiting for the full response
-            try {
-                await authFetch('/api/ChatMessages', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        sessionId: parseInt(sessionId),
-                        content: userMessage.content,
-                        role: "user"
-                    }),
-                });
-                // AI response will be pushed by SignalR, no need to handle it here
-            } catch (err) {
-                console.error('Failed to send message:', err);
-                setError(`Failed to send message: ${err.message}`);
-                // Optional: Remove the optimistic message or show an error indicator
-            }
-        }
-    };
-
-    if (loading) return <p>Loading chat...</p>;
-
     return (
-        <div className="p-8 max-w-4xl mx-auto">
-            <h1 className="text-4xl font-bold mb-4">Chat Session #{sessionId}</h1>
-            <div className="bg-white shadow-md rounded-lg h-[600px] flex flex-col">
-                <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto">
-                    {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-                    {messages.length === 0 && !loading && (
-                        <div className="text-center text-gray-500">
-                            No messages yet. Start the conversation!
-                        </div>
+        <div className="flex h-screen">
+            {/* Sidebar */}
+            <ChatSidebar
+                isCollapsed={isCollapsed}
+                onToggle={() => setIsCollapsed(!isCollapsed)}
+            />
+
+            {/* Main Chat Area */}
+            <main className="flex-1 flex flex-col bg-[#f7f7f7] relative">
+                {/* Messages */}
+                <div
+                    ref={chatContainerRef}
+                    className="flex-1 overflow-y-auto p-6 md:p-12 flex flex-col items-center bg-[#f7f7f7]"
+                >
+                    {loading ? (
+                        <p className="text-gray-500 mt-20">Loading messages...</p>
+                    ) : error ? (
+                        <p className="text-red-500 mt-20">Error: {error}</p>
+                    ) : messages.length === 0 ? (
+                        <p className="text-gray-500 mt-20">No messages yet</p>
+                    ) : (
+                        messages.map((msg) => (
+                            <div
+                                key={msg.id}
+                                className={`w-full max-w-3xl mb-6 ${msg.sender === 'User' ? 'user-message' : 'ai-message'
+                                    }`}
+                            >
+                                <div
+                                    className={`flex flex-col ${msg.sender === 'User'
+                                            ? 'items-end text-right'
+                                            : 'items-start text-left'
+                                        }`}
+                                >
+                                    <div className="text-sm text-gray-500 mb-1">
+                                        <span className="font-semibold text-black">
+                                            {msg.sender === 'User' ? 'Bạn' : 'Tuxedo'}
+                                        </span>{' '}
+                                        • {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+
+                                    <div className="flex items-start">
+                                        {msg.sender === 'AI' && (
+                                            <div
+                                                className="w-9 h-9 rounded-full bg-gray-300 mr-3"
+                                                style={{
+                                                    backgroundImage: "url('https://via.placeholder.com/35/cccccc/000?text=AI')",
+                                                    backgroundSize: 'cover',
+                                                    backgroundPosition: 'center',
+                                                }}
+                                            ></div>
+                                        )}
+
+                                        <div
+                                            className={`px-4 py-3 rounded-2xl shadow-sm max-w-[80%] ${msg.sender === 'User'
+                                                    ? 'bg-black text-white rounded-br-md'
+                                                    : 'bg-gray-200 text-black rounded-tl-md'
+                                                }`}
+                                        >
+                                            {msg.content}
+                                        </div>
+
+                                        {msg.sender === 'User' && (
+                                            <div className="w-9 h-9 rounded-full bg-gray-400 ml-3 flex items-center justify-center text-white">
+                                                <i className="fa-solid fa-user"></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
                     )}
-                    {messages.map((msg, index) => (
-                        <div key={index} className={`my-2 p-3 rounded-lg max-w-lg ${
-                            msg.role === 'assistant' 
-                                ? 'bg-blue-100 text-blue-900' 
-                                : 'bg-gray-200 text-gray-900 ml-auto'
-                        }`}>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
-                            <span className="text-xs text-gray-500 block text-right mt-1">
-                                {new Date(msg.createdAt).toLocaleTimeString()}
-                            </span>
-                        </div>
-                    ))}
                 </div>
 
-                <div className="p-4 bg-gray-100 border-t">
-                    <form onSubmit={sendMessage} className="flex">
+                {/* Input */}
+                <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+                    <div className="max-w-3xl mx-auto flex items-center border border-gray-200 rounded-xl bg-white shadow-sm">
                         <input
                             type="text"
                             value={inputMessage}
-                            onChange={e => setInputMessage(e.target.value)}
-                            className="flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Type your message..."
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            placeholder="Hỏi bất kỳ điều gì..."
+                            className="flex-1 px-4 py-3 text-sm outline-none rounded-l-xl"
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         />
                         <button
-                            type="submit"
-                            className="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600"
+                            onClick={handleSend}
+                            className="p-3 text-gray-600 hover:text-[#fca311] transition"
                         >
-                            Send
+                            <i className="fa-solid fa-paper-plane text-lg"></i>
                         </button>
-                    </form>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

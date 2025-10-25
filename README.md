@@ -1,5 +1,7 @@
 # Study Assistant
 
+#link slide: https://www.canva.com/design/DAG2t7FU0lY/cMwB8SsaOylnphuvWbLYJA/edit?utm_content=DAG2t7FU0lY&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
 ## Overview
 Study Assistant is a .NET and React platform that delivers an AI-powered learning companion. It ingests course documents, powers retrieval-augmented chat, generates quizzes, grades responses, and tracks study progress in real time.
 
@@ -106,3 +108,4 @@ Controllers expose metrics for course progress, document progress, learning acti
 
 ## License
 No license has been specified; treat the repository as private.
+
