@@ -8,6 +8,11 @@ Properties/launchSettings.json
 appsettings.Development.json
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+
+# Entity Framework Migrations
+Migrations/
 
 # Node.js / Vite specific (inside frontend directory)
 /frontend/node_modules/
