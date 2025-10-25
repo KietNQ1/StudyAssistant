@@ -107,6 +107,13 @@ function App() {
           padding: 60px 20px;
         }
 
+        /* Full-screen layout for chat pages */
+        main.fullscreen {
+          max-width: none;
+          margin: 0;
+          padding: 0;
+        }
+
         .hero-title {
           font-size: 48px;
           font-weight: 700;
@@ -148,7 +155,7 @@ function App() {
             </header>
 
             {/* Main content */}
-            <main>
+            <main className={location.pathname.startsWith('/chat-sessions') ? 'fullscreen' : ''}>
                 {/* Chỉ hiển thị slogan ở trang Home */}
                 {location.pathname === "/" && (
                     <h1 className="hero-title">
